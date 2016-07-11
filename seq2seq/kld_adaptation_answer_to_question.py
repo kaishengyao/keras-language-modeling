@@ -182,7 +182,9 @@ if __name__ == '__main__':
             print('-' * 50)
             print('Iteration', iteration)
             iz = model.predict(ix, )
-            it = (1 - kld_weight) * iy[0] + kld_weight * iz # the KLD target distribution
+            # use the original model to generate its prediction of the target distribution
+            it = (1 - kld_weight) * iy[0] + kld_weight * iz
+            # interpolate with the original target distribution
             model.fit(ix, [it], nb_epoch=10)
             model.save_weights(model_save + ".iter." + str(iteration), overwrite=True)
 
