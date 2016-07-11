@@ -147,6 +147,9 @@ if __name__ == '__main__':
                         i = 0
 
     def gen_adaptation_questions(batch_size):
+#        questions = qa.load('train')
+        # need to make sure that the adaptaiton data can be read and its format is the same as training
+        # in my case, I don't find adaptation, so I just copy training data and use it for adaptation
         questions = qa.load('adaptation')
         while True:
             i = 0
@@ -173,13 +176,14 @@ if __name__ == '__main__':
         model = get_model_for_adaptation(question_maxlen=question_maxlen, answer_maxlen=answer_maxlen, vocab_len=len(qa.vocab), n_hidden=128, learning_rate=0.0001)
 
         print('Training model...')
-        for iteration in range(1, 200):  # original code runs 200 iterations
+        for iteration in range(1, 20):  # original code runs 200 iterations
             print()
             print('-' * 50)
             print('Iteration', iteration)
-            model.fit_generator(gen, samples_per_epoch=100*batch_size, nb_epoch=10)
+            model.fit_generator(gen, samples_per_epoch=10*batch_size, nb_epoch=10)
             model.save_weights(model_save + ".iter." + str(iteration), overwrite=True)
 
+            print('Predict using the adapted model')
             x, y = next(test_gen)
             pred = model.predict(x, verbose=0)
             y = y[0]
