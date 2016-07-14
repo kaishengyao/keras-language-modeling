@@ -9,7 +9,7 @@ To-Do: use true adaptation data
 from __future__ import print_function
 import numpy as np
 from scipy.stats import rankdata
-
+import argparse
 import os
 from keras.engine import Input
 from keras.layers import LSTM, RepeatVector, TimeDistributed, Dense, Activation, Masking, merge, activations, Lambda, \
@@ -30,6 +30,17 @@ except:
 
 model_save = 'models/answer_to_question.h5'
 
+''' ====================================================== '''
+''' the following is global setup for experimentation'''
+kld_weight = 0.2  # weight to the original model, 1 corresponds to unsupervised training with target from the original model
+
+''' adaptation technique
+'simple' : simple adaptation using online adaptation
+'kld'    : KL-distance based adpatation
+'''
+adaptation_technique = 'simple'
+
+''' ====================================================== '''
 
 class InsuranceQA:
     def __init__(self):
@@ -115,11 +126,22 @@ def get_model_for_adaptation(model_name, question_maxlen, answer_maxlen, vocab_l
     return model
 
 if __name__ == '__main__':
-    question_maxlen, answer_maxlen = 20, 60
 
     qa = InsuranceQA()
-    batch_size = 50
-    n_test = 5
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--adaptation_technique", help="adaptation techniques, 'simple' or 'kld' ", choices=["simple", "kld"], default="simple")
+    parser.add_argument("--init_model", help="the initial model name", default=model_save)
+    parser.add_argument("--batch_size", help="the batch (number of sentences to be processed in parallel) size", default=50)
+    parser.add_argument("--question_maxlen", help="the maximum number of words in a question", default=20)
+    parser.add_argument("--answer_maxlen", help="the maximum number of words in an answer", default=60)
+    args = parser.parse_args()
+
+    adaptation_technique = args.adaptation_technique
+    init_model = args.init_model
+    batch_size = args.batch_size
+
+    question_maxlen, answer_maxlen = args.question_maxlen, args.answer_maxlen
+
 
     print('Generating data...')
     answers = qa.load('answers')
@@ -186,8 +208,8 @@ if __name__ == '__main__':
             max_n = np.argmax(r[:n_good])
 
             c_1 += 1 if max_r < n_good else 0   #recall rate R@1
-            c_5 += 1 if r[max_n] < 5 else 0       #recall rate R@5
-            c_10 += 1 if r[max_n] < 10 else 0       #recall rate R@10
+            c_5 += 1 if len(r) - r[max_n] < 5 else 0       #recall rate R@5
+            c_10 += 1 if len(r) - r[max_n] < 10 else 0       #recall rate R@10
 
             '''
             c_1 += 1 if max_r < n_good else 0   #recall rate R@1
@@ -234,7 +256,7 @@ if __name__ == '__main__':
 
     def simple_adaptation(question_maxlen, answer_maxlen, qa):
         print('Loaded trained model for adaptation...')
-        model = get_model_for_adaptation(model_name=model_save+'.trn.iter0', question_maxlen=question_maxlen,
+        model = get_model_for_adaptation(model_name=model_save+'.trn.' + init_model, question_maxlen=question_maxlen,
                                          answer_maxlen=answer_maxlen, vocab_len=len(qa.vocab), n_hidden=128,
                                          learning_rate=0.0001, must_exist_before=True)
 
@@ -248,10 +270,41 @@ if __name__ == '__main__':
             print('Iteration', iteration)
 
             model.fit_generator(gen, samples_per_epoch=10*batch_size, nb_epoch=10)
-            model.save_weights(model_save + ".adpt.iter." + str(iteration), overwrite=True)
+            model.save_weights(model_save + ".simple.adpt.iter." + str(iteration), overwrite=True)
 
             print('Evaluate performance')
             get_recall_rate(model)
 
-    simple_adaptation(question_maxlen, answer_maxlen, qa)
+    def kld_adaptation(question_maxlen, answer_maxlen, qa, kld_weight):
+        print('Loaded trained model for adaptation...')
+        model = get_model_for_adaptation(model_name=model_save+'.trn.' + init_model,
+                                         question_maxlen=question_maxlen,
+                                         answer_maxlen=answer_maxlen, vocab_len=len(qa.vocab),
+                                         n_hidden=128, learning_rate=0.0001,
+                                         must_exist_before=True)
+
+        print('Training model...')
+        ix, iy = next(gen)
+        for iteration in range(1, 20):  # original code runs 200 iterations
+            print()
+            print('-' * 50)
+            print('Iteration', iteration)
+
+            iz = model.predict(ix, )
+            # use the original model to generate its prediction of the target distribution
+            it = (1 - kld_weight) * iy[0] + kld_weight * iz
+            # interpolate with the original target distribution
+            model.fit(ix, [it], nb_epoch=1)
+            model.save_weights(model_save + ".kld.adpt.iter." + str(iteration), overwrite=True)
+
+            get_recall_rate(model)
+
+            # generate new data for adaptation
+            ix, iy = next(gen)
+
+
+    if adaptation_technique == 'simple':
+        simple_adaptation(question_maxlen, answer_maxlen, qa)
+    if adaptation_technique == 'kld':
+        kld_adaptation(question_maxlen, answer_maxlen, qa, kld_weight)
 
