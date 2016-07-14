@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import os
 # can remove this depending on ide...
-os.environ['INSURANCE_QA'] = '/media/moloch/HHD/MachineLearning/data/insuranceQA/pyenc'
+os.environ['INSURANCE_QA'] = 'c:/data/insurance_qa_python'
 
 import sys
 import random

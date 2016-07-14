@@ -67,8 +67,8 @@ class InsuranceQA:
             return index
 
 def get_model(question_maxlen, answer_maxlen, vocab_len, n_hidden, load_save=False):
-    answer = Input(shape=(answer_maxlen, vocab_len))
-    masked = Masking(mask_value=0.)(answer)
+    question = Input(shape=(question_maxlen, vocab_len))
+    masked = Masking(mask_value=0.)(question)
 
     # encoder rnn
     encode_rnn = LSTM(n_hidden, return_sequences=True, dropout_U=0.2)(masked)
@@ -78,8 +78,8 @@ def get_model(question_maxlen, answer_maxlen, vocab_len, n_hidden, load_save=Fal
     encode_brnn = LSTM(n_hidden, return_sequences=False, go_backwards=True, dropout_U=0.2)(encode_brnn)
 
     # repeat it maxlen times
-    repeat_encoding_rnn = RepeatVector(question_maxlen)(encode_rnn)
-    repeat_encoding_brnn = RepeatVector(question_maxlen)(encode_brnn)
+    repeat_encoding_rnn = RepeatVector(answer_maxlen)(encode_rnn)
+    repeat_encoding_brnn = RepeatVector(answer_maxlen)(encode_brnn)
 
     # decoder rnn
     decode_rnn = LSTM(n_hidden, return_sequences=True, dropout_U=0.2, dropout_W=0.5)(repeat_encoding_rnn)
@@ -93,10 +93,10 @@ def get_model(question_maxlen, answer_maxlen, vocab_len, n_hidden, load_save=Fal
     # output
     dense = TimeDistributed(Dense(vocab_len))(merged_output)
     regularized = ActivityRegularization(l2=1)(dense)
-    softmax = Activation('softmax')(regularized)
+    softmax = Activation('softmax',name='softmax_node')(regularized)
 
     # compile the prediction model
-    model = Model([answer], [softmax])
+    model = Model([question], [softmax])
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
     if os.path.exists(model_save) and load_save:
@@ -136,7 +136,7 @@ if __name__ == '__main__':
                     question_idx[i] = question
                     i += 1
                     if i == batch_size:
-                        yield ([answer_idx], [question_idx])
+                        yield ([question_idx], [answer_idx])
                         i = 0
 
     gen = gen_questions(batch_size)
@@ -151,7 +151,7 @@ if __name__ == '__main__':
         print('-' * 50)
         print('Iteration', iteration)
         model.fit_generator(gen, samples_per_epoch=100*batch_size, nb_epoch=10)
-        model.save_weights(model_save, overwrite=True)
+        model.save_weights(model_save+ ".trn.iter." + str(iteration), overwrite=True)
 
         x, y = next(test_gen)
         pred = model.predict(x, verbose=0)
