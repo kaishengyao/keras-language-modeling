@@ -127,25 +127,6 @@ def get_model_for_adaptation(model_name, question_maxlen, answer_maxlen, vocab_l
 
 if __name__ == '__main__':
 
-    qa = InsuranceQA()
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--adaptation_technique", help="adaptation techniques, 'simple' or 'kld' ", choices=["simple", "kld"], default="simple")
-    parser.add_argument("--init_model", help="the initial model name", default=model_save)
-    parser.add_argument("--batch_size", help="the batch (number of sentences to be processed in parallel) size", default=50)
-    parser.add_argument("--question_maxlen", help="the maximum number of words in a question", default=20)
-    parser.add_argument("--answer_maxlen", help="the maximum number of words in an answer", default=60)
-    args = parser.parse_args()
-
-    adaptation_technique = args.adaptation_technique
-    init_model = args.init_model
-    batch_size = args.batch_size
-
-    question_maxlen, answer_maxlen = args.question_maxlen, args.answer_maxlen
-
-
-    print('Generating data...')
-    answers = qa.load('answers')
-
     def padq(data):
         return pad(data, question_maxlen)
 
@@ -252,8 +233,6 @@ if __name__ == '__main__':
                         yield ([question_idx], [answer_idx])
                         i = 0
 
-    gen = gen_adaptation_questions(batch_size)
-
     def simple_adaptation(model, question_maxlen, answer_maxlen, qa):
 
         print('Training model...')
@@ -289,6 +268,30 @@ if __name__ == '__main__':
             # generate new data for adaptation
             ix, iy = next(gen)
 
+
+    qa = InsuranceQA()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--adaptation_technique", help="adaptation techniques, 'simple' or 'kld' ", choices=["simple", "kld"], default="simple")
+    parser.add_argument("--init_model", help="the initial model name", default=model_save)
+    parser.add_argument("--batch_size", help="the batch (number of sentences to be processed in parallel) size", default=50)
+    parser.add_argument("--question_maxlen", help="the maximum number of words in a question", default=20)
+    parser.add_argument("--answer_maxlen", help="the maximum number of words in an answer", default=60)
+    parser.add_argument("--kld_weight", help="the weight to the original model when doing KLD adpatation", default=0.2)
+    parser.add_argument("--answer_maxlen", help="the maximum number of words in an answer", default=60)
+    args = parser.parse_args()
+
+    adaptation_technique = args.adaptation_technique
+    init_model = args.init_model
+    batch_size = args.batch_size
+    kld_weight = args.kld_weight
+
+    question_maxlen, answer_maxlen = args.question_maxlen, args.answer_maxlen
+
+
+    print('Generating data...')
+    answers = qa.load('answers')
+
+    gen = gen_adaptation_questions(batch_size)
 
     print('Loaded trained model for adaptation...')
     model = get_model_for_adaptation(model_name=init_model, question_maxlen=question_maxlen,
