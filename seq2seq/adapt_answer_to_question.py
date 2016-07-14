@@ -256,7 +256,7 @@ if __name__ == '__main__':
 
     def simple_adaptation(question_maxlen, answer_maxlen, qa):
         print('Loaded trained model for adaptation...')
-        model = get_model_for_adaptation(model_name=model_save+'.trn.' + init_model, question_maxlen=question_maxlen,
+        model = get_model_for_adaptation(model_name=init_model, question_maxlen=question_maxlen,
                                          answer_maxlen=answer_maxlen, vocab_len=len(qa.vocab), n_hidden=128,
                                          learning_rate=0.0001, must_exist_before=True)
 
@@ -277,7 +277,7 @@ if __name__ == '__main__':
 
     def kld_adaptation(question_maxlen, answer_maxlen, qa, kld_weight):
         print('Loaded trained model for adaptation...')
-        model = get_model_for_adaptation(model_name=model_save+'.trn.' + init_model,
+        model = get_model_for_adaptation(model_name=init_model,
                                          question_maxlen=question_maxlen,
                                          answer_maxlen=answer_maxlen, vocab_len=len(qa.vocab),
                                          n_hidden=128, learning_rate=0.0001,
