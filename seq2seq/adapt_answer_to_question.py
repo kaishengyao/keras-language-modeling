@@ -262,7 +262,7 @@ if __name__ == '__main__':
             print('-' * 50)
             print('Iteration', iteration)
 
-            model.fit_generator(gen, samples_per_epoch=10*batch_size, nb_epoch=10)
+            model.fit_generator(gen, samples_per_epoch=10*batch_size, nb_epoch=1)
             model.save_weights(model_save + ".simple.adpt.iter." + str(iteration), overwrite=True)
 
             print('Evaluate performance')
