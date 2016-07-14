@@ -254,14 +254,7 @@ if __name__ == '__main__':
 
     gen = gen_adaptation_questions(batch_size)
 
-    def simple_adaptation(question_maxlen, answer_maxlen, qa):
-        print('Loaded trained model for adaptation...')
-        model = get_model_for_adaptation(model_name=init_model, question_maxlen=question_maxlen,
-                                         answer_maxlen=answer_maxlen, vocab_len=len(qa.vocab), n_hidden=128,
-                                         learning_rate=0.0001, must_exist_before=True)
-
-        print('Baseline performance')
-        get_recall_rate(model)
+    def simple_adaptation(model, question_maxlen, answer_maxlen, qa):
 
         print('Training model...')
         for iteration in range(1, 20):  # original code runs 200 iterations
@@ -275,13 +268,7 @@ if __name__ == '__main__':
             print('Evaluate performance')
             get_recall_rate(model)
 
-    def kld_adaptation(question_maxlen, answer_maxlen, qa, kld_weight):
-        print('Loaded trained model for adaptation...')
-        model = get_model_for_adaptation(model_name=init_model,
-                                         question_maxlen=question_maxlen,
-                                         answer_maxlen=answer_maxlen, vocab_len=len(qa.vocab),
-                                         n_hidden=128, learning_rate=0.0001,
-                                         must_exist_before=True)
+    def kld_adaptation(model, question_maxlen, answer_maxlen, qa, kld_weight):
 
         print('Training model...')
         ix, iy = next(gen)
@@ -303,8 +290,15 @@ if __name__ == '__main__':
             ix, iy = next(gen)
 
 
+    print('Loaded trained model for adaptation...')
+    model = get_model_for_adaptation(model_name=init_model, question_maxlen=question_maxlen,
+                                     answer_maxlen=answer_maxlen, vocab_len=len(qa.vocab), n_hidden=128,
+                                     learning_rate=0.0001, must_exist_before=True)
+    print('Baseline performance')
+    get_recall_rate(model)
+
     if adaptation_technique == 'simple':
-        simple_adaptation(question_maxlen, answer_maxlen, qa)
+        simple_adaptation(model, question_maxlen, answer_maxlen, qa)
     if adaptation_technique == 'kld':
-        kld_adaptation(question_maxlen, answer_maxlen, qa, kld_weight)
+        kld_adaptation(model, question_maxlen, answer_maxlen, qa, kld_weight)
 
