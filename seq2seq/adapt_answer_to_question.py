@@ -277,7 +277,6 @@ if __name__ == '__main__':
     parser.add_argument("--question_maxlen", help="the maximum number of words in a question", default=20)
     parser.add_argument("--answer_maxlen", help="the maximum number of words in an answer", default=60)
     parser.add_argument("--kld_weight", help="the weight to the original model when doing KLD adpatation", default=0.2)
-    parser.add_argument("--answer_maxlen", help="the maximum number of words in an answer", default=60)
     args = parser.parse_args()
 
     adaptation_technique = args.adaptation_technique
