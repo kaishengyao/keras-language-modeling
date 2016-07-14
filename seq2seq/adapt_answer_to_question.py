@@ -40,6 +40,8 @@ kld_weight = 0.2  # weight to the original model, 1 corresponds to unsupervised 
 '''
 adaptation_technique = 'simple'
 
+num_hypothesis = 10
+
 ''' ====================================================== '''
 
 class InsuranceQA:
@@ -180,8 +182,7 @@ if __name__ == '__main__':
 
             idx = 0
             sims = []
-#            for idx in xrange(bsize):
-            for idx in xrange(10): # 10 candidates including good responses
+            for idx in xrange(min(num_hypothesis, bsize)): # 10 candidates including good responses
                 q = question[0][idx,:,:]
                 a = lanswers[0][idx,:,:]
                 answer_idx = np.zeros(shape=(1, answer_maxlen, len(qa.vocab)))
@@ -192,7 +193,7 @@ if __name__ == '__main__':
                 # sims.append(model.evaluate([question_idx], [answer_idx], batch_size=1)[0]) Theano's cross entropy backend. Not normalized with length of sentences
                 #
 
-                sims.append(model.evaluate([question_idx], [answer_idx], batch_size=1)[0] / float(ans_len[idx]))
+                sims.append(model.evaluate([question_idx], [answer_idx], batch_size=1,verbose=0)[0] / float(ans_len[idx]))
                 # normalize the cross-entropy w.r.t. the number of words in answer
             r = rankdata(sims, method='max')
 
@@ -289,6 +290,7 @@ if __name__ == '__main__':
     parser.add_argument("--kld_weight", help="the weight to the original model when doing KLD adpatation", default=0.2)
     parser.add_argument("--max_iteration", help="maximum numbre of adaptation", default=20)
     parser.add_argument("--learning_rate", help="learning rate for adaptation", default=0.0001)
+    parser.add_argument("--num_hypothesis", help="number of hypothesis to evaluate recall rates", default=10)
 
     args = parser.parse_args()
 
@@ -296,6 +298,7 @@ if __name__ == '__main__':
     init_model = args.init_model
     batch_size = args.batch_size
     kld_weight = args.kld_weight
+    num_hypothesis = args.num_hypothesis
 
     question_maxlen, answer_maxlen = args.question_maxlen, args.answer_maxlen
     learning_rate = args.learning_rate
