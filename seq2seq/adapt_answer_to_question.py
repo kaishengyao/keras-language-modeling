@@ -163,7 +163,7 @@ if __name__ == '__main__':
 
 
         questions = qa.load('test2')
-        c_1, c_5, c10 = 0, 0, 0
+        c_1, c_5, c_10 = 0, 0, 0
 
         datasize = 0
         for s in questions:
