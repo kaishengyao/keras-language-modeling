@@ -65,10 +65,12 @@ class InsuranceQA:
 
         def encode(self, sentence, maxlen):
             indices = np.zeros((maxlen, len(self.words)))
+            slen = 0
             for i, w in enumerate(sentence):
                 if i == maxlen: break
                 indices[i, self.words_indices[w]] = 1
-            return indices
+                slen += 1
+            return indices, slen
 
         def decode(self, indices, calc_argmax=True):
             if calc_argmax:
@@ -149,16 +151,20 @@ if __name__ == '__main__':
         question_idx = np.zeros(shape=(batch_size, question_maxlen, len(qa.vocab)))
         answer_idx = np.zeros(shape=(batch_size, answer_maxlen, len(qa.vocab)))
 
+        v_question_len = []
+        v_answer_len = []
         for a in ans:
-            answer = qa.table.encode([qa.vocab[x] for x in answers[a]], answer_maxlen)
-            question = qa.table.encode([qa.vocab[x] for x in question_answer['question']], question_maxlen)
+            answer, answer_len = qa.table.encode([qa.vocab[x] for x in answers[a]], answer_maxlen)
+            question, question_len = qa.table.encode([qa.vocab[x] for x in question_answer['question']], question_maxlen)
 
             answer_idx[i] = answer
             question_idx[i] = question
 
+            v_question_len.append(question_len)
+            v_answer_len.append(answer_len)
             i += 1
 
-        return batch_size, len(question_answer['good']), [question_idx], [answer_idx]
+        return batch_size, len(question_answer['good']), [question_idx], [answer_idx], v_answer_len, v_question_len
 
     def get_recall_rate(model):
         top1s = list()
@@ -170,7 +176,7 @@ if __name__ == '__main__':
 
         datasize = 0
         for s in questions:
-            bsize, n_good, question, lanswers = gen_questions(s)
+            bsize, n_good, question, lanswers, ans_len, qus_len = gen_questions(s)
 
             idx = 0
             sims = []
@@ -182,7 +188,12 @@ if __name__ == '__main__':
                 question_idx = np.zeros(shape=(1, question_maxlen, len(qa.vocab)))
                 answer_idx[0] = a
                 question_idx[0] = q
-                sims.append(model.evaluate([question_idx], [answer_idx], batch_size=1)[0])
+                #
+                # sims.append(model.evaluate([question_idx], [answer_idx], batch_size=1)[0]) Theano's cross entropy backend. Not normalized with length of sentences
+                #
+
+                sims.append(model.evaluate([question_idx], [answer_idx], batch_size=1)[0] / float(ans_len[idx]))
+                # normalize the cross-entropy w.r.t. the number of words in answer
             r = rankdata(sims, method='max')
 
             max_r = np.argmax(r)
@@ -198,7 +209,6 @@ if __name__ == '__main__':
             c_2 += 1 if max_r < 10 else 0       #recall rate R@10
             '''
             datasize += 1
-            break
 
         R1 = c_1 / float(datasize)
         R5 = c_5 / float(datasize)
@@ -236,7 +246,7 @@ if __name__ == '__main__':
     def simple_adaptation(model, question_maxlen, answer_maxlen, qa):
 
         print('Training model...')
-        for iteration in range(1, 20):  # original code runs 200 iterations
+        for iteration in range(1, max_iteration):  # original code runs 200 iterations
             print()
             print('-' * 50)
             print('Iteration', iteration)
@@ -251,7 +261,7 @@ if __name__ == '__main__':
 
         print('Training model...')
         ix, iy = next(gen)
-        for iteration in range(1, 20):  # original code runs 200 iterations
+        for iteration in range(1, max_iteration):  # original code runs 200 iterations
             print()
             print('-' * 50)
             print('Iteration', iteration)
@@ -277,6 +287,9 @@ if __name__ == '__main__':
     parser.add_argument("--question_maxlen", help="the maximum number of words in a question", default=20)
     parser.add_argument("--answer_maxlen", help="the maximum number of words in an answer", default=60)
     parser.add_argument("--kld_weight", help="the weight to the original model when doing KLD adpatation", default=0.2)
+    parser.add_argument("--max_iteration", help="maximum numbre of adaptation", default=20)
+    parser.add_argument("--learning_rate", help="learning rate for adaptation", default=0.0001)
+
     args = parser.parse_args()
 
     adaptation_technique = args.adaptation_technique
@@ -285,7 +298,8 @@ if __name__ == '__main__':
     kld_weight = args.kld_weight
 
     question_maxlen, answer_maxlen = args.question_maxlen, args.answer_maxlen
-
+    learning_rate = args.learning_rate
+    max_iteration = args.max_iteration
 
     print('Generating data...')
     answers = qa.load('answers')
@@ -295,7 +309,7 @@ if __name__ == '__main__':
     print('Loaded trained model for adaptation...')
     model = get_model_for_adaptation(model_name=init_model, question_maxlen=question_maxlen,
                                      answer_maxlen=answer_maxlen, vocab_len=len(qa.vocab), n_hidden=128,
-                                     learning_rate=0.0001, must_exist_before=True)
+                                     learning_rate=learning_rate, must_exist_before=True)
     print('Baseline performance')
     get_recall_rate(model)
 
